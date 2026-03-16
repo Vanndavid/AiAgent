@@ -22,6 +22,11 @@ class AgentDecision(TypedDict, total=False):
     final_answer: str
 
 
+class AgentRunResult(TypedDict):
+    final_answer: str
+    scratchpad: List[str]
+
+
 SYSTEM_PROMPT = """
 You are a careful AI agent. You MUST output JSON only.
 
@@ -126,7 +131,7 @@ def execute_tool(tool_call: ToolCall) -> str:
 
 # ---------- Agentic loop ----------
 
-def run_agent(goal: str, max_steps: int = 6) -> str:
+def run_agent_detailed(goal: str, max_steps: int = 6) -> AgentRunResult:
     scratchpad: List[str] = []
 
     for step in range(1, max_steps + 1):
@@ -138,7 +143,10 @@ def run_agent(goal: str, max_steps: int = 6) -> str:
         scratchpad.append(f"Step {step} thought: {thought}")
 
         if action == "final_answer":
-            return decision.get("final_answer", "No answer provided.")
+            return {
+                "final_answer": decision.get("final_answer", "No answer provided."),
+                "scratchpad": scratchpad,
+            }
 
         if action == "tool_call":
             result = execute_tool(decision["tool_call"])
@@ -154,9 +162,16 @@ def run_agent(goal: str, max_steps: int = 6) -> str:
                 scratchpad.append(f"Step {step} observation: {save_result}")
             continue
 
-        return f"Stopped: invalid action '{action}'"
+        return {
+            "final_answer": f"Stopped: invalid action '{action}'",
+            "scratchpad": scratchpad,
+        }
 
-    return "Stopped: max steps reached"
+    return {"final_answer": "Stopped: max steps reached", "scratchpad": scratchpad}
+
+
+def run_agent(goal: str, max_steps: int = 6) -> str:
+    return run_agent_detailed(goal, max_steps)["final_answer"]
 
 
 if __name__ == "__main__":

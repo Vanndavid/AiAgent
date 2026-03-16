@@ -21,11 +21,11 @@ See `research_save_agent.py` for:
 - `build_user_prompt(...)` that injects goal + scratchpad + tool schema.
 
 ### Phase 2 — The loop
-See `run_agent(...)`:
-- `while` loop tracks `scratchpad` and `steps`.
-- Calls `call_llm(...)` each turn.
-- Executes tool requests and appends observations.
-- Stops on `final_answer`, `max_steps`, or tool error policy.
+See `run_agent_detailed(...)`:
+- loop tracks `scratchpad` and `steps`.
+- calls `call_llm(...)` each turn.
+- executes tool requests and appends observations.
+- stops on `final_answer`, `max_steps`, or invalid action.
 
 ### Phase 3 — Tool integration
 See:
@@ -33,11 +33,21 @@ See:
 - `get_tool_schemas()`: exposes allowed tool names/arguments to the model.
 - `execute_tool(...)`: validates + dispatches tool calls.
 
-## Run
+## CLI run
 
 ```bash
 python research_save_agent.py
 ```
 
-By default this runs with a deterministic fake LLM so you can see the plumbing clearly.
+## Simple local UI run
+
+```bash
+python ui_app.py
+```
+
+Then open `http://localhost:8000`, enter a goal, and inspect:
+- Final answer
+- Full agent trace (Reason/Observation log)
+
+By default this uses a deterministic fake `call_llm(...)` so the plumbing is easy to inspect.
 To use a real model, replace `call_llm(...)` with your provider call and keep the same JSON contract.
