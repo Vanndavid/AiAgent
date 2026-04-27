@@ -33,19 +33,32 @@ See:
 - `get_tool_schemas()`: exposes allowed tool names/arguments to the model.
 - `execute_tool(...)`: validates + dispatches tool calls.
 
-## CLI run
+## Step-by-step: how to run
 
-```bash
-python research_save_agent.py
-```
+1. **Go to the project folder**
+   ```bash
+   cd /workspace/AiAgent
+   ```
 
-## Simple local UI run
+2. **(Recommended) Create and activate a virtual environment**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   ```
 
-```bash
-python ui_app.py
-```
+3. **Run the CLI example**
+   ```bash
+   python research_save_agent.py
+   ```
 
-Then open `http://localhost:8000`, enter a goal, and inspect:
+4. **Run the local UI**
+   ```bash
+   python ui_app.py
+   ```
+
+5. **Open the app in your browser**
+   - `http://localhost:8000`
+   - Enter a goal and inspect:
 - Final answer
 - Full agent trace (Reason/Observation log)
 
