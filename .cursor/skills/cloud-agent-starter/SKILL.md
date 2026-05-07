@@ -20,9 +20,9 @@ Use this skill when you need to run, test, or debug this repository from Cursor 
 1. Start from the repo root:
    - `cd /workspace`
 2. Use Python 3.12 or newer:
-   - `python --version`
+   - `python3 --version`
 3. Optional virtualenv:
-   - `python -m venv .venv`
+   - `python3 -m venv .venv`
    - `source .venv/bin/activate`
 4. No login is required for the default app because `call_llm(...)` is deterministic and does not call an external model provider.
 5. If a future change wires in a real provider, store credentials in the Cloud environment rather than in the repo, then document the required variable names here.
@@ -32,7 +32,7 @@ Use this skill when you need to run, test, or debug this repository from Cursor 
 ### Run it
 
 - Execute the CLI example:
-  - `python research_save_agent.py`
+  - `python3 research_save_agent.py`
 - Expected result:
   - stdout includes `Done. I researched and saved notes to notes.txt.`
   - `notes.txt` contains a deterministic fake search summary.
@@ -40,12 +40,12 @@ Use this skill when you need to run, test, or debug this repository from Cursor 
 ### Test it
 
 - Syntax/import smoke test:
-  - `python -m py_compile research_save_agent.py ui_app.py`
+  - `python3 -m py_compile research_save_agent.py ui_app.py`
 - Functional smoke test without starting the UI:
   - Run:
 
 ```bash
-python - <<'PY'
+python3 - <<'PY'
 from research_save_agent import run_agent_detailed
 result = run_agent_detailed("Research the ReAct loop and save concise notes to a file.")
 assert result["final_answer"] == "Done. I researched and saved notes to notes.txt."
@@ -59,12 +59,12 @@ PY
 ### Run it
 
 - Start the local app from the repo root:
-  - `python ui_app.py`
+  - `python3 ui_app.py`
 - Open the app at:
   - `http://localhost:8000`
 - In Cloud, keep long-running servers in tmux so another agent or user can inspect the same session:
   - `SESSION_NAME="agent-ui"; tmux -f /exec-daemon/tmux.portal.conf has-session -t "=$SESSION_NAME" 2>/dev/null || tmux -f /exec-daemon/tmux.portal.conf new-session -d -s "$SESSION_NAME" -c "$PWD" -- "${SHELL:-bash}" -l`
-  - `tmux -f /exec-daemon/tmux.portal.conf send-keys -t "$SESSION_NAME:0.0" 'python ui_app.py' C-m`
+  - `tmux -f /exec-daemon/tmux.portal.conf send-keys -t "$SESSION_NAME:0.0" 'python3 ui_app.py' C-m`
 
 ### Test it
 
@@ -92,8 +92,8 @@ PY
   - `git status --short`
   - `git ls-files`
 - Before committing, run the workflows that touch your changed area:
-  - CLI/agent changes: `python -m py_compile research_save_agent.py ui_app.py` and the functional smoke test above.
-  - UI changes: compile check, start `python ui_app.py`, run GET and POST curl checks, then manually verify in the browser.
+  - CLI/agent changes: `python3 -m py_compile research_save_agent.py ui_app.py` and the functional smoke test above.
+  - UI changes: compile check, start `python3 ui_app.py`, run GET and POST curl checks, then manually verify in the browser.
   - Documentation-only changes: read the changed Markdown and run any commands that the documentation claims should work.
 - Avoid committing generated `notes.txt` changes unless the task is specifically about the fixture/output file.
 
