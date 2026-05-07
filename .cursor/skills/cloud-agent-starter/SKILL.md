@@ -21,13 +21,12 @@ Use this skill when you need to run, test, or debug this repository from Cursor 
    - `cd /workspace`
 2. Use Python 3.12 or newer:
    - `python3 --version`
-3. Optional virtualenv:
+3. Create a virtualenv before installing dependencies:
    - `python3 -m venv .venv`
-   - `source .venv/bin/activate`
-4. Install declared dependencies:
-   - `python3 -m pip install -r requirements.txt`
-5. No login is required for the default app because `call_llm(...)` is deterministic and does not call an external model provider.
-6. If a future change wires in a real provider, store credentials in the Cloud environment rather than in the repo, then document the required variable names here.
+   - `.venv/bin/python -m pip install -r requirements.txt`
+   - `source .venv/bin/activate` if you want `python` and `pip` to point at the virtualenv in an interactive shell.
+4. No login is required for the default app because `call_llm(...)` is deterministic and does not call an external model provider.
+5. If a future change wires in a real provider, store credentials in the Cloud environment rather than in the repo, then document the required variable names here.
 
 ## Agent loop area: `research_save_agent.py`
 
