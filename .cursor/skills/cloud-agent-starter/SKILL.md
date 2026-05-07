@@ -9,7 +9,7 @@ Use this skill when you need to run, test, or debug this repository from Cursor 
 
 ## Repository orientation
 
-- This is a small Python standard-library project; there is no package manifest, database, external service, or frontend build step.
+- This is a small Python standard-library project with an empty runtime `requirements.txt`; there is no database, external service, or frontend build step.
 - The agent loop lives in `research_save_agent.py`.
 - The local browser UI lives in `ui_app.py` and imports `run_agent_detailed(...)` from `research_save_agent.py`.
 - `notes.txt` is the default output written by the fake save-file tool.
@@ -24,8 +24,10 @@ Use this skill when you need to run, test, or debug this repository from Cursor 
 3. Optional virtualenv:
    - `python3 -m venv .venv`
    - `source .venv/bin/activate`
-4. No login is required for the default app because `call_llm(...)` is deterministic and does not call an external model provider.
-5. If a future change wires in a real provider, store credentials in the Cloud environment rather than in the repo, then document the required variable names here.
+4. Install declared dependencies:
+   - `python3 -m pip install -r requirements.txt`
+5. No login is required for the default app because `call_llm(...)` is deterministic and does not call an external model provider.
+6. If a future change wires in a real provider, store credentials in the Cloud environment rather than in the repo, then document the required variable names here.
 
 ## Agent loop area: `research_save_agent.py`
 
