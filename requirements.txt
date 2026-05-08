@@ -1,2 +1,0 @@
-# Runtime dependencies for this project.
-# The app currently uses only the Python standard library.
