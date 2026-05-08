@@ -1,66 +1,90 @@
-# Minimalist AI Agent (No LangChain/CrewAI)
+# Job Assistant (SaaS foundation)
 
-This repo contains a from-scratch Python example of an **agentic loop** for a "Research & Save" workflow.
+Monorepo scaffold for a job-application assistant: **ASP.NET Core** API, **React** (Vite), **PostgreSQL**, and a **FastAPI** microservice with **FAISS** for vector/RAG work. AWS (for example API Gateway) can sit in front later; this repo wires local/dev connectivity first.
 
-## ReAct in one minute
+## Layout
 
-**ReAct = Reason + Act + Observe**
+| Path | Role |
+|------|------|
+| `backend/JobAssistant.Api` | .NET 8 minimal API, CORS for Vite, `/api/stack-status` probes Postgres + RAG |
+| `frontend` | React + TypeScript UI that calls the API via Vite proxy |
+| `services/rag-api` | FastAPI + `faiss-cpu`; persists index under `var/faiss` locally or `/data/faiss` in Docker |
+| `docker-compose.yml` | Postgres + RAG container definitions |
 
-1. **Reason**: The model thinks about the goal and chooses the next step.
-2. **Act**: The model requests a tool call (search, save file, etc.).
-3. **Observe**: Tool output is fed back to the model.
-4. Repeat until the model emits `final_answer`.
+## Prerequisites
 
-In this repo, the LLM must always emit strict JSON so your loop can parse decisions deterministically.
+- [.NET 8 SDK](https://dotnet.microsoft.com/download)
+- Node.js 20+ (for Vite)
+- Python 3.12+ (optional if you only run RAG in Docker)
+- Docker Desktop or Docker Engine + Compose (for Postgres and containerized RAG)
 
-## Phases
+## Configuration
 
-### Phase 1 — Brain setup
-See `research_save_agent.py` for:
-- `SYSTEM_PROMPT` that enforces JSON shape.
-- `build_user_prompt(...)` that injects goal + scratchpad + tool schema.
+Copy `.env.example` to `.env` in the repo root if you want to override defaults. The API reads:
 
-### Phase 2 — The loop
-See `run_agent_detailed(...)`:
-- loop tracks `scratchpad` and `steps`.
-- calls `call_llm(...)` each turn.
-- executes tool requests and appends observations.
-- stops on `final_answer`, `max_steps`, or invalid action.
+- `ConnectionStrings__PostgreSQL` — Npgsql connection string (defaults match `docker-compose.yml`)
+- `Services__RagApiBaseUrl` — base URL for the Python service (default `http://localhost:8001`)
 
-### Phase 3 — Tool integration
-See:
-- `TOOL_REGISTRY`: maps tool names to Python callables.
-- `get_tool_schemas()`: exposes allowed tool names/arguments to the model.
-- `execute_tool(...)`: validates + dispatches tool calls.
+The Vite dev server proxies `/api` to `http://127.0.0.1:5287` (see `frontend/vite.config.ts`). The API listens on **5287** in `Properties/launchSettings.json`.
 
-## Step-by-step: how to run
+## Run everything locally
 
-1. **Go to the project folder**
+1. **Infrastructure**
+
    ```bash
-   cd /workspace/AiAgent
+   docker compose up -d --build
    ```
 
-2. **(Recommended) Create and activate a virtual environment**
+   This starts Postgres on `localhost:5432` and the RAG API on `localhost:8001`.
+
+2. **.NET API** (from repo root)
+
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate
+   dotnet run --project backend/JobAssistant.Api/JobAssistant.Api.csproj
    ```
 
-3. **Run the CLI example**
+3. **React**
+
    ```bash
-   python research_save_agent.py
+   cd frontend && npm install && npm run dev
    ```
 
-4. **Run the local UI**
-   ```bash
-   python ui_app.py
-   ```
+   Open the printed URL (typically `http://localhost:5173`). The home page calls `/api/stack-status` and shows whether Postgres and the RAG service respond.
 
-5. **Open the app in your browser**
-   - `http://localhost:8000`
-   - Enter a goal and inspect:
-- Final answer
-- Full agent trace (Reason/Observation log)
+### RAG service without Docker
 
-By default this uses a deterministic fake `call_llm(...)` so the plumbing is easy to inspect.
-To use a real model, replace `call_llm(...)` with your provider call and keep the same JSON contract.
+From `services/rag-api`:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+```
+
+The FAISS index file defaults to `services/rag-api/var/faiss/jobs.index`.
+
+## Verify connectivity
+
+With Docker running Postgres + RAG:
+
+```bash
+chmod +x scripts/verify-dev-connectivity.sh
+./scripts/verify-dev-connectivity.sh
+```
+
+The script builds the API, briefly runs it, and prints JSON from `/api/stack-status`. If the Docker daemon is unavailable (some CI sandboxes), run the three manual steps above on your machine instead.
+
+## Builds
+
+```bash
+dotnet build backend/JobAssistant.sln
+cd frontend && npm run build
+```
+
+## Next steps (product)
+
+- Auth / multi-tenant data model in Postgres
+- Email ingestion + application state machine in the API
+- Embeddings pipeline and retrieval in `rag-api`; optional sync metadata in SQL
+- Deploy: RDS Postgres, ECS/EKS or Lambda + API Gateway, separate image for `rag-api`
