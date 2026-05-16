@@ -55,7 +55,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors();
 
 var pgConnectionString = builder.Configuration.GetConnectionString("PostgreSQL")
-    ?? "Host=localhost;Port=5432;Username=jobassistant;Password=jobassistant;Database=jobassistant";
+    ?? "Host=127.0.0.1;Port=5432;Username=jobassistant;Password=jobassistant;Database=jobassistant";
 var ragBaseUrl = builder.Configuration["Services:RagApiBaseUrl"] ?? "http://localhost:8001";
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "job-assistant-api" }))
@@ -64,6 +64,7 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "job-a
 app.MapGet("/api/stack-status", async (IHttpClientFactory httpFactory) =>
     {
         var postgresOk = false;
+        string? postgresError = null;
         try
         {
             await using var conn = new NpgsqlConnection(pgConnectionString);
@@ -72,12 +73,13 @@ app.MapGet("/api/stack-status", async (IHttpClientFactory httpFactory) =>
             await cmd.ExecuteScalarAsync();
             postgresOk = true;
         }
-        catch
+        catch (Exception ex)
         {
-            postgresOk = false;
+            postgresError = ex.Message;
         }
 
         var ragOk = false;
+        string? ragError = null;
         try
         {
             var client = httpFactory.CreateClient();
@@ -85,16 +87,18 @@ app.MapGet("/api/stack-status", async (IHttpClientFactory httpFactory) =>
             using var resp = await client.GetAsync($"{ragBaseUrl.TrimEnd('/')}/health");
             ragOk = resp.IsSuccessStatusCode;
         }
-        catch
+        catch (Exception ex)
         {
-            ragOk = false;
+            ragError = ex.Message;
         }
 
         return Results.Ok(new
         {
             api = true,
             postgres = postgresOk,
+            postgresError,
             ragApi = ragOk,
+            ragError,
         });
     })
     .WithName("StackStatus")
