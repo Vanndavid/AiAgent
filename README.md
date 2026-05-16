@@ -37,6 +37,8 @@ The Vite dev server proxies `/api` to `http://127.0.0.1:5287` (see `frontend/vit
 
    This starts Postgres on `localhost:5432` and the RAG API on `localhost:8001`.
 
+   > **Port conflict?** If you already have PostgreSQL running locally on 5432, copy `.env.example` to `.env` and change `POSTGRES_PORT` (and the matching port in `ConnectionStrings__PostgreSQL`). Same for `RAG_PORT` / `Services__RagApiBaseUrl` if 8001 is taken.
+
 2. **.NET API** (from repo root)
 
    ```bash

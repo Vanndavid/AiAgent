@@ -1,12 +1,13 @@
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: jobassistant
       POSTGRES_PASSWORD: jobassistant
       POSTGRES_DB: jobassistant
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -14,13 +15,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   rag-api:
     build:
       context: ./services/rag-api
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
-      - "8001:8001"
+      - "${RAG_PORT:-8001}:8001"
     volumes:
       - faiss_data:/data/faiss
     environment:
