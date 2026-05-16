@@ -1,5 +1,34 @@
 using Npgsql;
 
+static string? FindEnvFile(string startDir)
+{
+    var dir = new DirectoryInfo(startDir);
+    while (dir is not null)
+    {
+        var candidate = Path.Combine(dir.FullName, ".env");
+        if (File.Exists(candidate) && File.Exists(Path.Combine(dir.FullName, "docker-compose.yml")))
+            return candidate;
+        dir = dir.Parent;
+    }
+    return null;
+}
+
+var envFile = FindEnvFile(Directory.GetCurrentDirectory());
+if (envFile is not null)
+{
+    foreach (var line in File.ReadAllLines(envFile))
+    {
+        var trimmed = line.Trim();
+        if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#'))
+            continue;
+        var eq = trimmed.IndexOf('=');
+        if (eq <= 0) continue;
+        var key = trimmed[..eq].Trim();
+        var val = trimmed[(eq + 1)..].Trim();
+        Environment.SetEnvironmentVariable(key, val);
+    }
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
