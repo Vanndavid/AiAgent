@@ -45,6 +45,7 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+var logger = app.Logger;
 
 if (app.Environment.IsDevelopment())
 {
@@ -57,6 +58,8 @@ app.UseCors();
 var pgConnectionString = builder.Configuration.GetConnectionString("PostgreSQL")
     ?? "Host=127.0.0.1;Port=5432;Username=jobassistant;Password=jobassistant;Database=jobassistant";
 var ragBaseUrl = builder.Configuration["Services:RagApiBaseUrl"] ?? "http://localhost:8001";
+logger.LogInformation("Postgres connection: {ConnStr}", pgConnectionString);
+logger.LogInformation("RAG base URL: {RagUrl}", ragBaseUrl);
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "job-assistant-api" }))
     .WithOpenApi();
@@ -76,6 +79,7 @@ app.MapGet("/api/stack-status", async (IHttpClientFactory httpFactory) =>
         catch (Exception ex)
         {
             postgresError = ex.Message;
+            logger.LogWarning(ex, "Postgres health check failed");
         }
 
         var ragOk = false;
@@ -90,6 +94,7 @@ app.MapGet("/api/stack-status", async (IHttpClientFactory httpFactory) =>
         catch (Exception ex)
         {
             ragError = ex.Message;
+            logger.LogWarning(ex, "RAG API health check failed");
         }
 
         return Results.Ok(new
