@@ -1,3 +1,5 @@
+using JobAssistant.Api.Data;
+using JobAssistant.Api.Endpoints;
 using Npgsql;
 
 static string? FindEnvFile(string startDir)
@@ -44,6 +46,10 @@ builder.Services.AddCors(options =>
     });
 });
 
+var pgConnectionString = builder.Configuration.GetConnectionString("PostgreSQL")
+    ?? "Host=127.0.0.1;Port=5432;Username=jobassistant;Password=jobassistant;Database=jobassistant";
+builder.Services.AddSingleton(new ApplicationRepository(pgConnectionString));
+
 var app = builder.Build();
 var logger = app.Logger;
 
@@ -55,11 +61,20 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors();
 
-var pgConnectionString = builder.Configuration.GetConnectionString("PostgreSQL")
-    ?? "Host=127.0.0.1;Port=5432;Username=jobassistant;Password=jobassistant;Database=jobassistant";
 var ragBaseUrl = builder.Configuration["Services:RagApiBaseUrl"] ?? "http://localhost:8001";
 logger.LogInformation("Postgres connection: {ConnStr}", pgConnectionString);
 logger.LogInformation("RAG base URL: {RagUrl}", ragBaseUrl);
+
+try
+{
+    var repo = app.Services.GetRequiredService<ApplicationRepository>();
+    await repo.EnsureSchemaAsync();
+    logger.LogInformation("Database schema ensured.");
+}
+catch (Exception ex)
+{
+    logger.LogWarning(ex, "Could not ensure database schema on startup.");
+}
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "job-assistant-api" }))
     .WithOpenApi();
@@ -108,5 +123,7 @@ app.MapGet("/api/stack-status", async (IHttpClientFactory httpFactory) =>
     })
     .WithName("StackStatus")
     .WithOpenApi();
+
+app.MapApplicationsEndpoints();
 
 app.Run();
