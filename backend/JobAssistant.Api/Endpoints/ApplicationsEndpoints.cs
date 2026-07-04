@@ -14,12 +14,40 @@ public static class ApplicationsEndpoints
             .WithName("ListApplications")
             .WithOpenApi();
 
+        group.MapGet("/transitions", () =>
+            Results.Ok(new
+            {
+                transitions = new Dictionary<string, string[]>
+                {
+                    [ApplicationStatuses.Saved] = [ApplicationStatuses.Applied],
+                    [ApplicationStatuses.Applied] = [ApplicationStatuses.Interview],
+                    [ApplicationStatuses.Interview] = [ApplicationStatuses.Offer, ApplicationStatuses.Rejected],
+                    [ApplicationStatuses.Offer] = [],
+                    [ApplicationStatuses.Rejected] = [],
+                },
+            }))
+            .WithName("GetApplicationTransitions")
+            .WithOpenApi();
+
         group.MapGet("/{id:guid}", async (Guid id, ApplicationRepository repo, CancellationToken ct) =>
         {
             var application = await repo.GetByIdAsync(id, ct);
             return application is null ? Results.NotFound() : Results.Ok(application);
         })
             .WithName("GetApplication")
+            .WithOpenApi();
+
+        group.MapGet("/{id:guid}/events", async (Guid id, ApplicationRepository repo, CancellationToken ct) =>
+        {
+            var application = await repo.GetByIdAsync(id, ct);
+            if (application is null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(application.Events);
+        })
+            .WithName("ListApplicationEvents")
             .WithOpenApi();
 
         group.MapPost("/", async (CreateApplicationRequest request, ApplicationRepository repo, CancellationToken ct) =>
@@ -58,6 +86,16 @@ public static class ApplicationsEndpoints
             {
                 var updated = await repo.UpdateAsync(id, request, ct);
                 return updated is null ? Results.NotFound() : Results.Ok(updated);
+            }
+            catch (InvalidStatusTransitionException ex)
+            {
+                return Results.BadRequest(new
+                {
+                    error = ex.Message,
+                    fromStatus = ex.FromStatus,
+                    toStatus = ex.ToStatus,
+                    allowedNext = ApplicationStatusTransitions.GetAllowedNext(ex.FromStatus),
+                });
             }
             catch (ArgumentException ex)
             {

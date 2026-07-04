@@ -5,6 +5,14 @@ export type ApplicationStatus =
   | 'offer'
   | 'rejected'
 
+export type ApplicationEvent = {
+  id: string
+  applicationId: string
+  fromStatus: ApplicationStatus | null
+  toStatus: ApplicationStatus
+  createdAt: string
+}
+
 export type JobApplication = {
   id: string
   company: string
@@ -14,6 +22,7 @@ export type JobApplication = {
   notes: string | null
   createdAt: string
   updatedAt: string
+  events: ApplicationEvent[]
 }
 
 export type StackStatus = {
@@ -27,12 +36,13 @@ export type StackStatus = {
 export type CreateApplicationInput = {
   company: string
   role: string
-  status?: ApplicationStatus
   appliedAt?: string | null
   notes?: string | null
 }
 
-export type UpdateApplicationInput = Partial<CreateApplicationInput>
+export type UpdateApplicationInput = Partial<
+  CreateApplicationInput & { status: ApplicationStatus }
+>
 
 export const APPLICATION_STATUSES: ApplicationStatus[] = [
   'saved',
@@ -48,4 +58,24 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   interview: 'Interview',
   offer: 'Offer',
   rejected: 'Rejected',
+}
+
+export const STATUS_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
+  saved: ['applied'],
+  applied: ['interview'],
+  interview: ['offer', 'rejected'],
+  offer: [],
+  rejected: [],
+}
+
+export function getSelectableStatuses(current: ApplicationStatus): ApplicationStatus[] {
+  return [current, ...STATUS_TRANSITIONS[current]]
+}
+
+export function formatEventLabel(event: ApplicationEvent): string {
+  if (event.fromStatus === null) {
+    return `Created as ${STATUS_LABELS[event.toStatus]}`
+  }
+
+  return `${STATUS_LABELS[event.fromStatus]} → ${STATUS_LABELS[event.toStatus]}`
 }

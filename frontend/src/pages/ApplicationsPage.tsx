@@ -1,17 +1,15 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { ApplicationStatusSelect, ApplicationTimeline } from '../components/ApplicationTimeline'
 import {
-  APPLICATION_STATUSES,
   type ApplicationStatus,
   type CreateApplicationInput,
   type JobApplication,
-  STATUS_LABELS,
 } from '../types/application'
 import '../App.css'
 
 const emptyForm: CreateApplicationInput = {
   company: '',
   role: '',
-  status: 'saved',
   appliedAt: '',
   notes: '',
 }
@@ -87,7 +85,6 @@ export default function ApplicationsPage() {
       const payload = {
         company: form.company.trim(),
         role: form.role.trim(),
-        status: form.status ?? 'saved',
         appliedAt: form.appliedAt ? new Date(form.appliedAt).toISOString() : null,
         notes: form.notes?.trim() || null,
       }
@@ -113,6 +110,11 @@ export default function ApplicationsPage() {
   }
 
   const handleStatusChange = async (id: string, status: ApplicationStatus) => {
+    const current = applications.find((application) => application.id === id)
+    if (!current || current.status === status) {
+      return
+    }
+
     setError(null)
     try {
       const response = await fetch(`/api/applications/${id}`, {
@@ -121,12 +123,19 @@ export default function ApplicationsPage() {
         body: JSON.stringify({ status }),
       })
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null
-        throw new Error(body?.error ?? `HTTP ${response.status}`)
+        const body = (await response.json().catch(() => null)) as {
+          error?: string
+          allowedNext?: ApplicationStatus[]
+        } | null
+        const allowed = body?.allowedNext?.length
+          ? ` Allowed next: ${body.allowedNext.join(', ')}.`
+          : ''
+        throw new Error(`${body?.error ?? `HTTP ${response.status}`}${allowed}`)
       }
       setApplications(await fetchApplications())
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to update status')
+      setApplications(await fetchApplications())
     }
   }
 
@@ -147,6 +156,10 @@ export default function ApplicationsPage() {
     <>
       <section className="card">
         <h2>Add application</h2>
+        <p className="hint">
+          New applications start as <strong>Saved</strong>. Advance status using the workflow:
+          Saved → Applied → Interview → Offer or Rejected.
+        </p>
         <form className="form" onSubmit={(event) => void handleSubmit(event)}>
           <label>
             Company
@@ -165,21 +178,6 @@ export default function ApplicationsPage() {
               placeholder="Software Engineer"
               required
             />
-          </label>
-          <label>
-            Status
-            <select
-              value={form.status ?? 'saved'}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, status: e.target.value as ApplicationStatus }))
-              }
-            >
-              {APPLICATION_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
           </label>
           <label>
             Applied date
@@ -231,21 +229,10 @@ export default function ApplicationsPage() {
                   <span>{application.role}</span>
                   <span className="mono">Applied {formatDate(application.appliedAt)}</span>
                   {application.notes && <p className="notes">{application.notes}</p>}
+                  <ApplicationTimeline events={application.events} />
                 </div>
                 <div className="application-actions">
-                  <select
-                    value={application.status}
-                    onChange={(e) =>
-                      void handleStatusChange(application.id, e.target.value as ApplicationStatus)
-                    }
-                    aria-label={`Status for ${application.company}`}
-                  >
-                    {APPLICATION_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {STATUS_LABELS[status]}
-                      </option>
-                    ))}
-                  </select>
+                  <ApplicationStatusSelect application={application} onChange={handleStatusChange} />
                   <button
                     type="button"
                     className="btn danger"
