@@ -4,13 +4,14 @@
 
 ### Overview
 
-Job Assistant is a monorepo with three services plus Docker-managed infrastructure. See `README.md` for full documentation. Key ports:
+Job Assistant is a monorepo with four services plus Docker-managed infrastructure. See `README.md` for full documentation. Key ports:
 
 | Service | Port | Run command |
 |---|---|---|
 | ASP.NET Core API | 5287 | `dotnet run --project backend/JobAssistant.Api/JobAssistant.Api.csproj --urls http://127.0.0.1:5287` |
 | React (Vite) | 5173 | `cd frontend && npm run dev` |
 | RAG API (FastAPI) | 8001 | `cd services/rag-api && .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001` |
+| AI agent (FastAPI) | 8002 | `cd services/ai-agent && .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8002` |
 | PostgreSQL | 5432 | `docker compose up -d postgres` (requires Docker daemon running) |
 
 ### Starting Docker
@@ -39,6 +40,16 @@ The .NET API handles RAG being unavailable gracefully (`ragApi: false` in `/api/
 ```bash
 cd services/rag-api && .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```
+
+### AI agent (optional)
+
+The .NET API proxies `POST /api/agent/run` to the Python agent and reports `aiAgent` in `/api/stack-status`. Start it to exercise the ReAct loop:
+
+```bash
+cd services/ai-agent && .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8002
+```
+
+Smoke: `curl -fsS -X POST http://127.0.0.1:5287/api/agent/run -H 'Content-Type: application/json' -d '{"goal":"Research ReAct"}'`
 
 ### Lint / build / test
 

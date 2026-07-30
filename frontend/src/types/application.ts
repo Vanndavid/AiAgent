@@ -22,6 +22,8 @@ export type StackStatus = {
   postgresError: string | null
   ragApi: boolean
   ragError: string | null
+  aiAgent: boolean
+  aiAgentError: string | null
 }
 
 export type CreateApplicationInput = {

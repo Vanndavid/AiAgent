@@ -9,10 +9,11 @@ Use this skill when you need to run, build, or smoke-test this repository from C
 
 ## Repository orientation
 
-- **Backend:** `backend/JobAssistant.Api` — ASP.NET Core 8 Web API (`/api/health`, `/api/stack-status`).
+- **Backend:** `backend/JobAssistant.Api` — ASP.NET Core 8 Web API (`/api/health`, `/api/stack-status`, `/api/agent/run`).
 - **Frontend:** `frontend` — React + Vite + TypeScript; dev proxy forwards `/api` to `http://127.0.0.1:5287`.
 - **RAG service:** `services/rag-api` — FastAPI + FAISS; default index path under `services/rag-api/var/faiss/` when not using Docker.
-- **Infra:** `docker-compose.yml` — Postgres + `rag-api` image build.
+- **AI agent:** `services/ai-agent` — FastAPI ReAct loop on port **8002**; callable via `POST /agent/run` or .NET `POST /api/agent/run`.
+- **Infra:** `docker-compose.yml` — Postgres + `rag-api` + `ai-agent` image builds.
 
 Credentials belong in environment variables or `.env` (not committed). Example names are in `.env.example`.
 
@@ -37,7 +38,7 @@ curl -fsS http://127.0.0.1:5287/api/health
 curl -fsS http://127.0.0.1:5287/api/stack-status
 ```
 
-`stack-status` reports whether Postgres and the RAG `/health` endpoint are reachable.
+`stack-status` reports whether Postgres, the RAG `/health` endpoint, and the AI agent `/health` endpoint are reachable.
 
 ## Frontend
 
@@ -63,6 +64,23 @@ Check:
 
 ```bash
 curl -fsS http://127.0.0.1:8001/health
+```
+
+## AI agent (Python)
+
+```bash
+cd services/ai-agent
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8002
+```
+
+Check:
+
+```bash
+curl -fsS http://127.0.0.1:8002/health
+curl -fsS -X POST http://127.0.0.1:8002/agent/run \
+  -H 'Content-Type: application/json' \
+  -d '{"goal":"Research the ReAct loop"}'
 ```
 
 ## Docker Compose (when Docker daemon works)

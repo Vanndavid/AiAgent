@@ -11,3 +11,4 @@ dist/
 .env
 
 services/rag-api/var/
+services/ai-agent/var/

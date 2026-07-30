@@ -62,8 +62,10 @@ if (app.Environment.IsDevelopment())
 app.UseCors();
 
 var ragBaseUrl = builder.Configuration["Services:RagApiBaseUrl"] ?? "http://localhost:8001";
+var agentBaseUrl = builder.Configuration["Services:AiAgentBaseUrl"] ?? "http://localhost:8002";
 logger.LogInformation("Postgres connection: {ConnStr}", pgConnectionString);
 logger.LogInformation("RAG base URL: {RagUrl}", ragBaseUrl);
+logger.LogInformation("AI agent base URL: {AgentUrl}", agentBaseUrl);
 
 try
 {
@@ -112,6 +114,21 @@ app.MapGet("/api/stack-status", async (IHttpClientFactory httpFactory) =>
             logger.LogWarning(ex, "RAG API health check failed");
         }
 
+        var agentOk = false;
+        string? agentError = null;
+        try
+        {
+            var client = httpFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(5);
+            using var resp = await client.GetAsync($"{agentBaseUrl.TrimEnd('/')}/health");
+            agentOk = resp.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            agentError = ex.Message;
+            logger.LogWarning(ex, "AI agent health check failed");
+        }
+
         return Results.Ok(new
         {
             api = true,
@@ -119,11 +136,14 @@ app.MapGet("/api/stack-status", async (IHttpClientFactory httpFactory) =>
             postgresError,
             ragApi = ragOk,
             ragError,
+            aiAgent = agentOk,
+            aiAgentError = agentError,
         });
     })
     .WithName("StackStatus")
     .WithOpenApi();
 
 app.MapApplicationsEndpoints();
+app.MapAgentEndpoints(agentBaseUrl);
 
 app.Run();

@@ -268,3 +268,25 @@
     grid-template-columns: 1fr;
   }
 }
+
+.agent-result {
+  margin-top: 20px;
+}
+
+.agent-result h3 {
+  margin: 16px 0 8px;
+  font-size: 16px;
+  color: var(--text-h);
+}
+
+.agent-trace {
+  margin: 0;
+  white-space: pre-wrap;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-h);
+}

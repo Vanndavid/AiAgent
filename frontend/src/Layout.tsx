@@ -12,6 +12,7 @@ export default function Layout() {
             Stack status
           </NavLink>
           <NavLink to="/applications">Applications</NavLink>
+          <NavLink to="/agent">AI agent</NavLink>
         </nav>
       </header>
       <Outlet />
