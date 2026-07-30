@@ -99,6 +99,12 @@ export default function StackStatusPage() {
               <span className="detail-error">{status.ragError}</span>
             )}
           </li>
+          <li>
+            AI agent (ReAct loop) {pill(status.aiAgent)}
+            {!status.aiAgent && status.aiAgentError && (
+              <span className="detail-error">{status.aiAgentError}</span>
+            )}
+          </li>
         </ul>
       )}
 

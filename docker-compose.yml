@@ -29,6 +29,14 @@ services:
     environment:
       FAISS_INDEX_PATH: /data/faiss/jobs.index
 
+  ai-agent:
+    build:
+      context: ./services/ai-agent
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${AI_AGENT_PORT:-8002}:8002"
+
 volumes:
   pgdata:
   faiss_data:
