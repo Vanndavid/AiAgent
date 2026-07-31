@@ -8,8 +8,8 @@ Monorepo scaffold for a job-application assistant: **ASP.NET Core** API, **React
 |------|------|
 | `backend/JobAssistant.Api` | .NET 8 minimal API, CORS for Vite, `/api/stack-status` probes Postgres + RAG + AI agent |
 | `frontend` | React + TypeScript UI that calls the API via Vite proxy |
-| `services/rag-api` | FastAPI + `faiss-cpu`; persists index under `var/faiss` locally or `/data/faiss` in Docker |
-| `services/ai-agent` | FastAPI ReAct research/save agent; `POST /agent/run` |
+| `services/rag-api` | FastAPI + FAISS; text ingest/query + vector search; persists under `var/faiss` or `/data/faiss` |
+| `services/ai-agent` | FastAPI ReAct agent with tools for applications, RAG, and research/save; `POST /agent/run` |
 | `docker-compose.yml` | Postgres + RAG + AI agent container definitions |
 
 ## Prerequisites
@@ -66,7 +66,19 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 ```
 
-The FAISS index file defaults to `services/rag-api/var/faiss/jobs.index`.
+The FAISS index defaults to `services/rag-api/var/faiss/` (LangChain `jobs.faiss` + `jobs.pkl`). Seed job chunks are created on first start.
+
+Ingest / query without Docker:
+
+```bash
+curl -fsS -X POST http://127.0.0.1:8001/rag/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"texts":["Example Co seeks a Backend Engineer with ASP.NET and Postgres."],"metadatas":[{"company":"Example Co","role":"Backend Engineer"}]}'
+
+curl -fsS -X POST http://127.0.0.1:8001/rag/query \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"backend engineer postgresql","k":3}'
+```
 
 ### AI agent without Docker
 
@@ -79,15 +91,30 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8002
 ```
 
+Point the agent at the API + RAG (defaults match local ports):
+
+```bash
+export JOB_ASSISTANT_API_BASE_URL=http://127.0.0.1:5287
+export RAG_API_BASE_URL=http://127.0.0.1:8001
+```
+
 Call it directly:
 
 ```bash
 curl -fsS -X POST http://127.0.0.1:8002/agent/run \
   -H 'Content-Type: application/json' \
-  -d '{"goal":"Research the ReAct loop and save concise notes."}'
+  -d '{"goal":"List my job applications and retrieve similar backend engineer roles from RAG."}'
 ```
 
 Or through the .NET API (once running): `POST /api/agent/run` with the same JSON body. The UI page is at `/agent`.
+
+Agent tools (deterministic fake LLM picks based on goal keywords):
+
+| Tool | Calls |
+|------|--------|
+| `list_applications` / `get_application` / `create_application` | .NET `/api/applications` |
+| `rag_retrieve` / `rag_ingest` | RAG `/rag/query` and `/rag/ingest` |
+| `web_search` / `save_file` | Stub search + local notes |
 
 ## Verify connectivity
 
@@ -111,5 +138,6 @@ cd frontend && npm run build
 
 - Auth / multi-tenant data model in Postgres
 - Email ingestion + application state machine in the API
-- Embeddings pipeline and retrieval in `rag-api`; optional sync metadata in SQL
+- Real embedding model (replace FakeEmbeddings) and optional sync metadata in SQL
+- Real LLM provider for the agent (keep the JSON tool-call contract)
 - Deploy: RDS Postgres, ECS/EKS or Lambda + API Gateway, separate image for `rag-api`
