@@ -27,7 +27,7 @@ services:
     volumes:
       - faiss_data:/data/faiss
     environment:
-      FAISS_INDEX_PATH: /data/faiss/jobs.index
+      FAISS_STORE_DIR: /data/faiss
 
   ai-agent:
     build:
@@ -36,6 +36,14 @@ services:
     restart: unless-stopped
     ports:
       - "${AI_AGENT_PORT:-8002}:8002"
+    environment:
+      # Host-published API (run `dotnet` on the host). Override if needed.
+      JOB_ASSISTANT_API_BASE_URL: "${JOB_ASSISTANT_API_BASE_URL:-http://host.docker.internal:5287}"
+      RAG_API_BASE_URL: "${RAG_API_BASE_URL:-http://rag-api:8001}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - rag-api
 
 volumes:
   pgdata:

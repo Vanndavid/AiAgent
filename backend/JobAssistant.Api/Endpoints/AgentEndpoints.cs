@@ -10,7 +10,8 @@ public static class AgentEndpoints
     public sealed record AgentRunResponse(
         [property: JsonPropertyName("goal")] string Goal,
         [property: JsonPropertyName("final_answer")] string FinalAnswer,
-        [property: JsonPropertyName("scratchpad")] IReadOnlyList<string> Scratchpad);
+        [property: JsonPropertyName("scratchpad")] IReadOnlyList<string> Scratchpad,
+        [property: JsonPropertyName("tools_used")] IReadOnlyList<string>? ToolsUsed = null);
 
     public static IEndpointRouteBuilder MapAgentEndpoints(this IEndpointRouteBuilder app, string agentBaseUrl)
     {

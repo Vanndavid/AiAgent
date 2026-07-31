@@ -1,5 +1,6 @@
 using JobAssistant.Api.Data;
 using JobAssistant.Api.Models;
+using Npgsql;
 
 namespace JobAssistant.Api.Endpoints;
 
@@ -10,14 +11,30 @@ public static class ApplicationsEndpoints
         var group = app.MapGroup("/api/applications").WithTags("Applications");
 
         group.MapGet("/", async (ApplicationRepository repo, CancellationToken ct) =>
-            Results.Ok(await repo.ListAsync(ct)))
+        {
+            try
+            {
+                return Results.Ok(await repo.ListAsync(ct));
+            }
+            catch (NpgsqlException ex)
+            {
+                return Results.Json(new { error = "Database unavailable.", detail = ex.Message }, statusCode: 503);
+            }
+        })
             .WithName("ListApplications")
             .WithOpenApi();
 
         group.MapGet("/{id:guid}", async (Guid id, ApplicationRepository repo, CancellationToken ct) =>
         {
-            var application = await repo.GetByIdAsync(id, ct);
-            return application is null ? Results.NotFound() : Results.Ok(application);
+            try
+            {
+                var application = await repo.GetByIdAsync(id, ct);
+                return application is null ? Results.NotFound() : Results.Ok(application);
+            }
+            catch (NpgsqlException ex)
+            {
+                return Results.Json(new { error = "Database unavailable.", detail = ex.Message }, statusCode: 503);
+            }
         })
             .WithName("GetApplication")
             .WithOpenApi();
@@ -37,6 +54,10 @@ public static class ApplicationsEndpoints
             catch (ArgumentException ex)
             {
                 return Results.BadRequest(new { error = ex.Message });
+            }
+            catch (NpgsqlException ex)
+            {
+                return Results.Json(new { error = "Database unavailable.", detail = ex.Message }, statusCode: 503);
             }
         })
             .WithName("CreateApplication")
@@ -63,14 +84,25 @@ public static class ApplicationsEndpoints
             {
                 return Results.BadRequest(new { error = ex.Message });
             }
+            catch (NpgsqlException ex)
+            {
+                return Results.Json(new { error = "Database unavailable.", detail = ex.Message }, statusCode: 503);
+            }
         })
             .WithName("UpdateApplication")
             .WithOpenApi();
 
         group.MapDelete("/{id:guid}", async (Guid id, ApplicationRepository repo, CancellationToken ct) =>
         {
-            var deleted = await repo.DeleteAsync(id, ct);
-            return deleted ? Results.NoContent() : Results.NotFound();
+            try
+            {
+                var deleted = await repo.DeleteAsync(id, ct);
+                return deleted ? Results.NoContent() : Results.NotFound();
+            }
+            catch (NpgsqlException ex)
+            {
+                return Results.Json(new { error = "Database unavailable.", detail = ex.Message }, statusCode: 503);
+            }
         })
             .WithName("DeleteApplication")
             .WithOpenApi();

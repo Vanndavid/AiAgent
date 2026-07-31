@@ -3,7 +3,7 @@ from fastapi import FastAPI
 
 from .agent import run_agent_detailed
 
-app = FastAPI(title="Job Assistant AI Agent", version="0.1.0")
+app = FastAPI(title="Job Assistant AI Agent", version="0.2.0")
 
 
 class AgentRunRequest(BaseModel):
@@ -13,15 +13,28 @@ class AgentRunRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "ai-agent"}
+    return {
+        "status": "ok",
+        "service": "ai-agent",
+        "tools": [
+            "list_applications",
+            "get_application",
+            "create_application",
+            "rag_retrieve",
+            "rag_ingest",
+            "web_search",
+            "save_file",
+        ],
+    }
 
 
 @app.post("/agent/run")
 def agent_run(body: AgentRunRequest):
-    """Run the ReAct research/save agent loop and return the final answer + trace."""
+    """Run the ReAct agent loop (applications + RAG tools when relevant)."""
     result = run_agent_detailed(body.goal.strip(), max_steps=body.max_steps)
     return {
         "goal": body.goal.strip(),
         "final_answer": result["final_answer"],
         "scratchpad": result["scratchpad"],
+        "tools_used": result["tools_used"],
     }

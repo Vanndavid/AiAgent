@@ -11,8 +11,8 @@ Use this skill when you need to run, build, or smoke-test this repository from C
 
 - **Backend:** `backend/JobAssistant.Api` — ASP.NET Core 8 Web API (`/api/health`, `/api/stack-status`, `/api/agent/run`).
 - **Frontend:** `frontend` — React + Vite + TypeScript; dev proxy forwards `/api` to `http://127.0.0.1:5287`.
-- **RAG service:** `services/rag-api` — FastAPI + FAISS; default index path under `services/rag-api/var/faiss/` when not using Docker.
-- **AI agent:** `services/ai-agent` — FastAPI ReAct loop on port **8002**; callable via `POST /agent/run` or .NET `POST /api/agent/run`.
+- **RAG service:** `services/rag-api` — FastAPI + FAISS; text ingest/query at `/rag/ingest` and `/rag/query`; store under `services/rag-api/var/faiss/` (or `FAISS_STORE_DIR`).
+- **AI agent:** `services/ai-agent` — FastAPI ReAct loop on port **8002** with tools for applications + RAG; callable via `POST /agent/run` or .NET `POST /api/agent/run`. Env: `JOB_ASSISTANT_API_BASE_URL`, `RAG_API_BASE_URL`.
 - **Infra:** `docker-compose.yml` — Postgres + `rag-api` + `ai-agent` image builds.
 
 Credentials belong in environment variables or `.env` (not committed). Example names are in `.env.example`.

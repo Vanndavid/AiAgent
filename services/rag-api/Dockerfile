@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 
-ENV FAISS_INDEX_PATH=/data/faiss/jobs.index
+ENV FAISS_STORE_DIR=/data/faiss
 
 EXPOSE 8001
 
