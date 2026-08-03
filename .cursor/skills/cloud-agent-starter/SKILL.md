@@ -28,6 +28,7 @@ Credentials belong in environment variables or `.env` (not committed). Example n
 
 ```bash
 dotnet build backend/JobAssistant.sln
+dotnet test backend/JobAssistant.sln
 dotnet run --project backend/JobAssistant.Api/JobAssistant.Api.csproj --urls http://127.0.0.1:5287
 ```
 
@@ -36,9 +37,13 @@ Smoke (API must be running):
 ```bash
 curl -fsS http://127.0.0.1:5287/api/health
 curl -fsS http://127.0.0.1:5287/api/stack-status
+curl -fsS "http://127.0.0.1:5287/api/applications?status=saved&search=acme"
+curl -fsS "http://127.0.0.1:5287/api/agent/runs?limit=5"
 ```
 
-`stack-status` reports whether Postgres, the RAG `/health` endpoint, and the AI agent `/health` endpoint are reachable.
+`stack-status` reports whether Postgres, the RAG `/health` endpoint, and the AI agent `/health` endpoint are reachable. On startup the API applies versioned SQL under `Data/Migrations`.
+
+One-command local stack (Docker required): `./scripts/dev-up.sh`
 
 ## Frontend
 

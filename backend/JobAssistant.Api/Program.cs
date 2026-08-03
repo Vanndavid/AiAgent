@@ -49,6 +49,8 @@ builder.Services.AddCors(options =>
 var pgConnectionString = builder.Configuration.GetConnectionString("PostgreSQL")
     ?? "Host=127.0.0.1;Port=5432;Username=jobassistant;Password=jobassistant;Database=jobassistant";
 builder.Services.AddSingleton(new ApplicationRepository(pgConnectionString));
+builder.Services.AddSingleton(new AgentRunRepository(pgConnectionString));
+builder.Services.AddSingleton(new MigrationRunner(pgConnectionString));
 
 var app = builder.Build();
 var logger = app.Logger;
@@ -69,13 +71,16 @@ logger.LogInformation("AI agent base URL: {AgentUrl}", agentBaseUrl);
 
 try
 {
-    var repo = app.Services.GetRequiredService<ApplicationRepository>();
-    await repo.EnsureSchemaAsync();
-    logger.LogInformation("Database schema ensured.");
+    var migrator = app.Services.GetRequiredService<MigrationRunner>();
+    var applied = await migrator.ApplyAsync();
+    logger.LogInformation(
+        "Database migrations applied ({Applied} new) from {Dir}.",
+        applied,
+        migrator.MigrationsDirectory);
 }
 catch (Exception ex)
 {
-    logger.LogWarning(ex, "Could not ensure database schema on startup.");
+    logger.LogWarning(ex, "Could not apply database migrations on startup.");
 }
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "job-assistant-api" }))
@@ -147,3 +152,5 @@ app.MapApplicationsEndpoints();
 app.MapAgentEndpoints(agentBaseUrl);
 
 app.Run();
+
+public partial class Program;

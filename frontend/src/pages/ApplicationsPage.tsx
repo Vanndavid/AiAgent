@@ -16,10 +16,26 @@ const emptyForm: CreateApplicationInput = {
   notes: '',
 }
 
-async function fetchApplications(): Promise<JobApplication[]> {
-  const response = await fetch('/api/applications')
+type SortBy = 'applied' | 'company' | 'role' | 'status' | 'created' | 'updated'
+type SortDir = 'asc' | 'desc'
+
+type ListFilters = {
+  status: '' | ApplicationStatus
+  search: string
+  sortBy: SortBy
+  sortDir: SortDir
+}
+
+async function fetchApplications(filters: ListFilters): Promise<JobApplication[]> {
+  const params = new URLSearchParams()
+  if (filters.status) params.set('status', filters.status)
+  if (filters.search.trim()) params.set('search', filters.search.trim())
+  params.set('sortBy', filters.sortBy)
+  params.set('sortDir', filters.sortDir)
+  const response = await fetch(`/api/applications?${params.toString()}`)
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`)
+    const body = (await response.json().catch(() => null)) as { error?: string } | null
+    throw new Error(body?.error ?? `HTTP ${response.status}`)
   }
   return response.json() as Promise<JobApplication[]>
 }
@@ -36,26 +52,32 @@ function formatDate(value: string | null) {
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState<JobApplication[]>([])
   const [form, setForm] = useState<CreateApplicationInput>(emptyForm)
+  const [filters, setFilters] = useState<ListFilters>({
+    status: '',
+    search: '',
+    sortBy: 'applied',
+    sortDir: 'desc',
+  })
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (next: ListFilters = filters) => {
     setLoading(true)
     setError(null)
     try {
-      setApplications(await fetchApplications())
+      setApplications(await fetchApplications(next))
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load applications')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [filters])
 
   useEffect(() => {
     let cancelled = false
 
-    fetchApplications()
+    fetchApplications(filters)
       .then((body) => {
         if (!cancelled) {
           setApplications(body)
@@ -72,7 +94,7 @@ export default function ApplicationsPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [filters])
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -103,8 +125,19 @@ export default function ApplicationsPage() {
         throw new Error(body?.error ?? `HTTP ${response.status}`)
       }
 
+      const created = (await response.json()) as JobApplication
       setForm(emptyForm)
-      setApplications(await fetchApplications())
+      // Optimistic insert when filters would include the new row; otherwise refresh.
+      if (
+        (!filters.status || filters.status === created.status) &&
+        (!filters.search.trim() ||
+          created.company.toLowerCase().includes(filters.search.trim().toLowerCase()) ||
+          created.role.toLowerCase().includes(filters.search.trim().toLowerCase()))
+      ) {
+        setApplications((prev) => [created, ...prev.filter((a) => a.id !== created.id)])
+      } else {
+        await refresh()
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to create application')
     } finally {
@@ -114,6 +147,12 @@ export default function ApplicationsPage() {
 
   const handleStatusChange = async (id: string, status: ApplicationStatus) => {
     setError(null)
+    const previous = applications
+    setApplications((prev) =>
+      prev
+        .map((app) => (app.id === id ? { ...app, status } : app))
+        .filter((app) => !filters.status || app.status === filters.status),
+    )
     try {
       const response = await fetch(`/api/applications/${id}`, {
         method: 'PATCH',
@@ -124,21 +163,31 @@ export default function ApplicationsPage() {
         const body = (await response.json().catch(() => null)) as { error?: string } | null
         throw new Error(body?.error ?? `HTTP ${response.status}`)
       }
-      setApplications(await fetchApplications())
+      const updated = (await response.json()) as JobApplication
+      setApplications((prev) => {
+        const without = prev.filter((a) => a.id !== id)
+        if (filters.status && updated.status !== filters.status) {
+          return without
+        }
+        return [updated, ...without]
+      })
     } catch (e: unknown) {
+      setApplications(previous)
       setError(e instanceof Error ? e.message : 'Failed to update status')
     }
   }
 
   const handleDelete = async (id: string) => {
     setError(null)
+    const previous = applications
+    setApplications((prev) => prev.filter((a) => a.id !== id))
     try {
       const response = await fetch(`/api/applications/${id}`, { method: 'DELETE' })
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`)
       }
-      setApplications(await fetchApplications())
     } catch (e: unknown) {
+      setApplications(previous)
       setError(e instanceof Error ? e.message : 'Failed to delete application')
     }
   }
@@ -214,12 +263,74 @@ export default function ApplicationsPage() {
           </button>
         </div>
 
+        <div className="filters">
+          <label>
+            Status
+            <select
+              value={filters.status}
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  status: e.target.value as ListFilters['status'],
+                }))
+              }
+            >
+              <option value="">All</option>
+              {APPLICATION_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {STATUS_LABELS[status]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Search
+            <input
+              value={filters.search}
+              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+              placeholder="Company or role"
+            />
+          </label>
+          <label>
+            Sort by
+            <select
+              value={filters.sortBy}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, sortBy: e.target.value as SortBy }))
+              }
+            >
+              <option value="applied">Applied date</option>
+              <option value="company">Company</option>
+              <option value="role">Role</option>
+              <option value="status">Status</option>
+              <option value="created">Created</option>
+              <option value="updated">Updated</option>
+            </select>
+          </label>
+          <label>
+            Direction
+            <select
+              value={filters.sortDir}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, sortDir: e.target.value as SortDir }))
+              }
+            >
+              <option value="desc">Descending</option>
+              <option value="asc">Ascending</option>
+            </select>
+          </label>
+        </div>
+
         {error && <p className="error">{error}</p>}
 
         {loading && <p className="muted">Loading applications…</p>}
 
         {!loading && applications.length === 0 && (
-          <p className="muted">No applications yet. Add your first one above.</p>
+          <p className="muted">
+            {filters.status || filters.search.trim()
+              ? 'No applications match these filters.'
+              : 'No applications yet. Add your first one above.'}
+          </p>
         )}
 
         {!loading && applications.length > 0 && (
