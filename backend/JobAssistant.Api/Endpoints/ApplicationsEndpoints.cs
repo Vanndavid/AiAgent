@@ -10,11 +10,22 @@ public static class ApplicationsEndpoints
     {
         var group = app.MapGroup("/api/applications").WithTags("Applications");
 
-        group.MapGet("/", async (ApplicationRepository repo, CancellationToken ct) =>
+        group.MapGet("/", async (
+            ApplicationRepository repo,
+            string? status,
+            string? search,
+            string? sortBy,
+            string? sortDir,
+            CancellationToken ct) =>
         {
             try
             {
-                return Results.Ok(await repo.ListAsync(ct));
+                var query = ApplicationListQueryParser.Parse(status, search, sortBy, sortDir);
+                return Results.Ok(await repo.ListAsync(query, ct));
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
             }
             catch (NpgsqlException ex)
             {

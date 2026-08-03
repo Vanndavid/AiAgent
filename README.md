@@ -14,11 +14,16 @@ Local/dev connectivity is wired first; AWS (for example API Gateway + managed Po
 |------------|--------|
 | Stack health dashboard (`/`) | Probes API, Postgres, RAG, AI agent |
 | Job applications CRUD (`/applications`) | Create / list / update / delete with status workflow |
-| AI agent UI (`/agent`) | Runs goals via `POST /api/agent/run` |
+| Applications filters | Status, search (company/role), sort + optimistic inline status/delete |
+| AI agent UI (`/agent`) | Runs goals via `POST /api/agent/run`; shows recent saved runs |
 | Agent → applications tools | `list_applications`, `get_application`, `create_application` |
 | Agent → RAG tools | `rag_retrieve`, `rag_ingest` |
 | RAG text ingest / query | `POST /rag/ingest`, `POST /rag/query` (+ vector search) |
+| Versioned SQL migrations | `Data/Migrations` + `schema_migrations` on API startup |
+| Agent run history | Persisted in Postgres; `GET /api/agent/runs` |
 | Fake LLM + FakeEmbeddings | Deterministic local demos **without API keys** |
+| Dev bring-up script | `./scripts/dev-up.sh` (Compose + API + Vite) |
+| Automated tests | .NET xUnit (query/migrations), agent policy tests, RAG round-trip |
 
 ---
 
@@ -26,11 +31,13 @@ Local/dev connectivity is wired first; AWS (for example API Gateway + managed Po
 
 | Path | Role |
 |------|------|
-| `backend/JobAssistant.Api` | .NET 8 minimal API; CORS for Vite; `/api/stack-status`, `/api/applications`, `/api/agent/run` |
+| `backend/JobAssistant.Api` | .NET 8 minimal API; CORS for Vite; migrations; applications + agent run history |
+| `backend/JobAssistant.Api.Tests` | xUnit tests for migration discovery and list-query parsing |
 | `frontend` | React + TypeScript UI (stack status, applications, agent) via Vite `/api` proxy |
 | `services/rag-api` | FastAPI + FAISS + LangChain; text ingest/query; persists under `var/faiss` or `/data/faiss` |
 | `services/ai-agent` | FastAPI ReAct agent with applications + RAG + research/save tools; `POST /agent/run` |
 | `docker-compose.yml` | Postgres + RAG + AI agent container definitions |
+| `scripts/dev-up.sh` | One-command local bring-up (Compose + API + Vite) |
 | `scripts/verify-dev-connectivity.sh` | Smoke script for `/api/stack-status` |
 
 ---
@@ -62,6 +69,17 @@ The Vite dev server proxies `/api` to `http://127.0.0.1:5287` (see `frontend/vit
 ---
 
 ## Run everything locally
+
+**Option A — one script** (requires Docker):
+
+```bash
+chmod +x scripts/dev-up.sh
+./scripts/dev-up.sh
+```
+
+Starts Compose (Postgres + RAG + agent), the .NET API on `:5287`, and Vite on `http://localhost:5173`. Ctrl+C stops API/Vite; Compose keeps running.
+
+**Option B — manual**
 
 1. **Infrastructure**
 
@@ -146,11 +164,17 @@ chmod +x scripts/verify-dev-connectivity.sh
 
 Builds the API, briefly runs it, and prints JSON from `/api/stack-status`. If Docker is unavailable, start services manually and curl `/api/health` and `/api/stack-status`.
 
-## Builds
+## Builds & tests
 
 ```bash
 dotnet build backend/JobAssistant.sln
+dotnet test backend/JobAssistant.sln
+
 cd frontend && npm run lint && npm run build
+
+# Python (from each service directory, with venv activated)
+cd services/ai-agent && pip install pytest && python -m pytest tests/
+cd services/rag-api && pip install pytest && python -m pytest tests/
 ```
 
 ---
@@ -159,24 +183,15 @@ cd frontend && npm run lint && npm run build
 
 The product goal is a multi-tenant SaaS that helps people **track applications**, **understand job descriptions**, and **act through an agent** (research, draft, update pipeline) with durable data and real models. Work is ordered so each phase ships usable value on top of the current scaffold.
 
-### Phase 1 — Make the demo trustworthy (foundation)
+### Phase 1 — Make the demo trustworthy (foundation) ✅ in progress / largely done
 
 Finish turning stubs into reliable local product loops.
 
-1. **Postgres always on in the happy path**  
-   Document and script one-command bring-up (Compose + API + Vite). Fail soft in UI when DB is down; keep the 503 JSON contract for agent tools.
-
-2. **Schema migrations**  
-   Replace ensure-schema-on-startup with versioned migrations (e.g. FluentMigrator or EF migrations). Add indexes on `status`, `applied_at`, and future `user_id`.
-
-3. **Applications UX**  
-   Filters by status, search by company/role, sort, empty states, and inline status changes without full-page reloads. Optional kanban/board view later in Phase 3.
-
-4. **Agent run history**  
-   Persist each `POST /agent/run` (goal, tools used, scratchpad, final answer, timestamps) in Postgres and show recent runs on `/agent`.
-
-5. **Automated tests**  
-   API integration tests for applications CRUD; agent unit tests for tool selection / tool HTTP clients (mocked); RAG ingest→query round-trip test.
+1. **Postgres always on in the happy path** — ✅ `scripts/dev-up.sh`; UI fails soft when DB is down; 503 JSON for agent tools  
+2. **Schema migrations** — ✅ versioned SQL under `Data/Migrations` + `schema_migrations`  
+3. **Applications UX** — ✅ status filter, search, sort, empty states, optimistic inline status/delete  
+4. **Agent run history** — ✅ Postgres + `GET /api/agent/runs` + UI on `/agent`  
+5. **Automated tests** — ✅ .NET xUnit + agent policy tests + RAG ingest/query round-trip  
 
 **Exit criteria:** With Compose + API + UI, a user can CRUD applications, ingest a JD, retrieve it, and run an agent goal that lists apps and retrieves RAG hits—all with tests in CI.
 
@@ -255,7 +270,7 @@ Keep the same JSON tool-call contract; swap fakes for providers behind env confi
 
 ## Suggested build order (short)
 
-1. Migrations + application filters + agent run history  
+1. ~~Migrations + application filters + agent run history~~ (Phase 1)  
 2. Real embeddings + JD ingest UI  
 3. Real LLM behind the existing tool contract  
 4. Auth + ownership  

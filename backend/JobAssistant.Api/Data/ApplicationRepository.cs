@@ -12,32 +12,44 @@ public sealed class ApplicationRepository
         _connectionString = connectionString;
     }
 
-    public async Task EnsureSchemaAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<JobApplication>> ListAsync(
+        ApplicationListQuery? query = null,
+        CancellationToken cancellationToken = default)
     {
-        var schemaPath = Path.Combine(AppContext.BaseDirectory, "Data", "schema.sql");
-        if (!File.Exists(schemaPath))
-        {
-            schemaPath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "schema.sql");
-        }
+        query ??= new ApplicationListQuery();
 
-        var sql = await File.ReadAllTextAsync(schemaPath, cancellationToken);
-        await using var conn = new NpgsqlConnection(_connectionString);
-        await conn.OpenAsync(cancellationToken);
-        await using var cmd = new NpgsqlCommand(sql, conn);
-        await cmd.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<JobApplication>> ListAsync(CancellationToken cancellationToken = default)
-    {
-        const string sql = """
+        var sql = """
             SELECT id, company, role, status, applied_at, notes, created_at, updated_at
             FROM applications
-            ORDER BY COALESCE(applied_at, created_at) DESC;
+            WHERE 1=1
             """;
+
+        if (query.Status is not null)
+        {
+            sql += " AND status = @status";
+        }
+
+        if (query.Search is not null)
+        {
+            sql += " AND (company ILIKE @search OR role ILIKE @search)";
+        }
+
+        sql += " ORDER BY " + OrderByClause(query.SortBy, query.SortDir) + ";";
 
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync(cancellationToken);
         await using var cmd = new NpgsqlCommand(sql, conn);
+
+        if (query.Status is not null)
+        {
+            cmd.Parameters.AddWithValue("status", query.Status);
+        }
+
+        if (query.Search is not null)
+        {
+            cmd.Parameters.AddWithValue("search", "%" + query.Search + "%");
+        }
+
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
         var results = new List<JobApplication>();
@@ -153,6 +165,20 @@ public sealed class ApplicationRepository
         cmd.Parameters.AddWithValue("id", id);
         var rows = await cmd.ExecuteNonQueryAsync(cancellationToken);
         return rows > 0;
+    }
+
+    private static string OrderByClause(string sortBy, string sortDir)
+    {
+        var dir = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase) ? "ASC" : "DESC";
+        return sortBy.ToLowerInvariant() switch
+        {
+            "company" => $"company {dir}",
+            "role" => $"role {dir}",
+            "status" => $"status {dir}",
+            "created" => $"created_at {dir}",
+            "updated" => $"updated_at {dir}",
+            _ => $"COALESCE(applied_at, created_at) {dir}",
+        };
     }
 
     private static JobApplication ReadApplication(NpgsqlDataReader reader) =>

@@ -1,3 +1,4 @@
+-- Applications table (initial schema)
 CREATE TABLE IF NOT EXISTS applications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company TEXT NOT NULL,
@@ -12,3 +13,5 @@ CREATE TABLE IF NOT EXISTS applications (
 
 CREATE INDEX IF NOT EXISTS idx_applications_status ON applications (status);
 CREATE INDEX IF NOT EXISTS idx_applications_applied_at ON applications (applied_at DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_applications_company_lower ON applications (LOWER(company));
+CREATE INDEX IF NOT EXISTS idx_applications_role_lower ON applications (LOWER(role));
